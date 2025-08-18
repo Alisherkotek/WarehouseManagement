@@ -1,0 +1,74 @@
+# --- OS junk ---
+.DS_Store
+Thumbs.db
+
+# --- Build artifacts ---
+bin/
+obj/
+[Ll]ogs/
+[Bb]uild/
+Debug/
+Release/
+x64/
+x86/
+out/
+publish/
+*.log
+*.svclog
+
+# --- Visual Studio / MSBuild ---
+.vs/
+*.user
+*.suo
+*.rsuser
+*.userprefs
+*.sln.docstates
+
+# --- JetBrains Rider / ReSharper ---
+.idea/
+.shelf/
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+*.ipr
+*.iws
+*.iml
+
+# --- VS Code ---
+.vscode/
+
+# --- Tests & coverage ---
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+coverage/
+CoverletOutput*/
+*.opencover.xml
+*.cobertura.xml
+
+# --- NuGet / packages ---
+*.nupkg
+*.snupkg
+packages/
+
+# --- ASP.NET Core / config secrets ---
+appsettings.*.Local.json
+appsettings.Local.json
+secrets.json
+*.secret.json
+.env
+.env.*
+
+# --- Blazor / web assets (если собираешь скрипты/стили) ---
+wwwroot/dist/
+wwwroot/**/*.map
+
+# --- Node (на случай фронт-скриптов в wwwroot) ---
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# --- Misc ---
+*.swp
+*.swo
