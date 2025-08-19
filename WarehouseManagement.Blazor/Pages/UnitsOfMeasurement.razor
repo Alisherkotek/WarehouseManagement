@@ -1,0 +1,232 @@
+@page "/units"
+@using WarehouseManagement.Blazor.Models
+@using WarehouseManagement.Blazor.Services
+@inject IWarehouseService WarehouseService
+@inject ISnackbar Snackbar
+
+<MudText Typo="Typo.h4" GutterBottom="true">Единицы измерения</MudText>
+
+<MudCard Class="mb-4">
+    <MudCardContent>
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="OpenCreateDialog">
+                    Добавить
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="ToggleArchived" Class="ml-2">
+                    @(showArchived ? "Скрыть архив" : "К архиву")
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudCardContent>
+</MudCard>
+
+<MudTable Items="@units" Hover="true" Loading="@loading" LoadingProgressColor="Color.Info" Elevation="0" Bordered="true">
+    <HeaderContent>
+        <MudTh>Наименование</MudTh>
+        <MudTh>Действия</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Наименование">
+            @context.Name
+            @if (context.IsArchived)
+            {
+                <MudChip T="string" Size="Size.Small" Color="Color.Warning" Class="ml-2">В архиве</MudChip>
+            }
+        </MudTd>
+        <MudTd DataLabel="Действия">
+            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => OpenEditDialog(context)"/>
+            @if (!context.IsArchived)
+            {
+                <MudIconButton Icon="@Icons.Material.Filled.Archive" Color="Color.Warning" Size="Size.Small" OnClick="() => ArchiveUnit(context)" Title="В архив"/>
+            }
+            else
+            {
+                <MudIconButton Icon="@Icons.Material.Filled.Unarchive" Color="Color.Success" Size="Size.Small" OnClick="() => RestoreUnit(context)" Title="Из архива"/>
+            }
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteUnit(context)"/>
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+
+<MudDialog @bind-IsVisible="dialogVisible" Options="dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            @(editingUnit == null ? "Добавить единицу измерения" : "Редактировать единицу измерения")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField @bind-Value="formModel.Name" Label="Наименование" Required="true" Variant="Variant.Outlined"/>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CloseDialog">Отмена</MudButton>
+        <MudButton Color="Color.Primary" OnClick="SaveUnit">Сохранить</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<UnitOfMeasurementDto> units = new();
+    private bool loading = false;
+    private bool showArchived = false;
+    private bool dialogVisible = false;
+    private UnitOfMeasurementDto? editingUnit;
+    private UnitFormModel formModel = new();
+    private DialogOptions dialogOptions = new() { MaxWidth = MaxWidth.Small, FullWidth = true };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUnits();
+    }
+
+    private async Task LoadUnits()
+    {
+        loading = true;
+        try
+        {
+            units = await WarehouseService.GetUnitsAsync(showArchived);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Ошибка загрузки: {ex.Message}", Severity.Error);
+            units = new List<UnitOfMeasurementDto>();
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void OpenCreateDialog()
+    {
+        editingUnit = null;
+        formModel = new UnitFormModel();
+        dialogVisible = true;
+    }
+
+    private void OpenEditDialog(UnitOfMeasurementDto unit)
+    {
+        editingUnit = unit;
+        formModel = new UnitFormModel
+        {
+            Name = unit.Name
+        };
+        dialogVisible = true;
+    }
+
+    private void CloseDialog()
+    {
+        dialogVisible = false;
+        editingUnit = null;
+        formModel = new UnitFormModel();
+    }
+
+    private async Task SaveUnit()
+    {
+        if (string.IsNullOrWhiteSpace(formModel.Name))
+        {
+            Snackbar.Add("Введите наименование", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            if (editingUnit == null)
+            {
+                var dto = new CreateUnitOfMeasurementDto { Name = formModel.Name };
+                var result = await WarehouseService.CreateUnitAsync(dto);
+                if (result != null)
+                {
+                    Snackbar.Add("Единица измерения добавлена", Severity.Success);
+                    CloseDialog();
+                    await LoadUnits();
+                }
+                else
+                {
+                    Snackbar.Add("Ошибка при добавлении", Severity.Error);
+                }
+            }
+            else
+            {
+                var dto = new UpdateUnitOfMeasurementDto
+                {
+                    Name = formModel.Name,
+                    IsArchived = editingUnit.IsArchived
+                };
+                var result = await WarehouseService.UpdateUnitAsync(editingUnit.Id, dto);
+                if (result != null)
+                {
+                    Snackbar.Add("Единица измерения обновлена", Severity.Success);
+                    CloseDialog();
+                    await LoadUnits();
+                }
+                else
+                {
+                    Snackbar.Add("Ошибка при обновлении", Severity.Error);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Ошибка: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task ArchiveUnit(UnitOfMeasurementDto unit)
+    {
+        var result = await WarehouseService.ArchiveUnitAsync(unit.Id);
+        if (result)
+        {
+            Snackbar.Add("Единица измерения перемещена в архив", Severity.Success);
+            await LoadUnits();
+        }
+        else
+        {
+            Snackbar.Add("Ошибка архивации", Severity.Error);
+        }
+    }
+
+    private async Task RestoreUnit(UnitOfMeasurementDto unit)
+    {
+        var dto = new UpdateUnitOfMeasurementDto
+        {
+            Name = unit.Name,
+            IsArchived = false
+        };
+        var result = await WarehouseService.UpdateUnitAsync(unit.Id, dto);
+        if (result != null)
+        {
+            Snackbar.Add("Единица измерения восстановлена из архива", Severity.Success);
+            await LoadUnits();
+        }
+        else
+        {
+            Snackbar.Add("Ошибка восстановления", Severity.Error);
+        }
+    }
+
+    private async Task DeleteUnit(UnitOfMeasurementDto unit)
+    {
+        var result = await WarehouseService.DeleteUnitAsync(unit.Id);
+        if (result)
+        {
+            Snackbar.Add("Единица измерения удалена", Severity.Success);
+            await LoadUnits();
+        }
+        else
+        {
+            Snackbar.Add("Невозможно удалить - единица измерения используется", Severity.Error);
+        }
+    }
+
+    private async Task ToggleArchived()
+    {
+        showArchived = !showArchived;
+        await LoadUnits();
+    }
+
+    private class UnitFormModel
+    {
+        public string Name { get; set; } = string.Empty;
+    }
+
+}

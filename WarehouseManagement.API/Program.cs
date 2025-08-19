@@ -67,6 +67,7 @@ builder.Services.AddScoped<IClientService, ClientService>();
 builder.Services.AddScoped<IBalanceService, BalanceService>();
 builder.Services.AddScoped<IReceiptDocumentService, ReceiptDocumentService>();
 builder.Services.AddScoped<IShipmentDocumentService, ShipmentDocumentService>();
+builder.Services.AddScoped<IWarehouseReportService, WarehouseReportService>();
 
 builder.Services.AddCors(options =>
 {

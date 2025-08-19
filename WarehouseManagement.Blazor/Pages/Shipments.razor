@@ -1,0 +1,176 @@
+@page "/shipments"
+@using WarehouseManagement.Blazor.Models
+@using WarehouseManagement.Blazor.Services
+@inject IWarehouseService WarehouseService
+@inject ISnackbar Snackbar
+
+<MudText Typo="Typo.h4" GutterBottom="true">Отгрузки</MudText>
+
+<MudCard>
+    <MudCardContent>
+        <MudGrid>
+            <MudItem xs="12" md="3">
+                <MudText Typo="Typo.body2">Период</MudText>
+                <MudGrid>
+                    <MudItem xs="6">
+                        <MudDatePicker Label="" @bind-Date="dateFrom" Variant="Variant.Outlined"/>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudDatePicker Label="" @bind-Date="dateTo" Variant="Variant.Outlined"/>
+                    </MudItem>
+                </MudGrid>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudSelect T="string" Label="Номер отгрузки" @bind-Value="selectedNumber" Clearable="true" Variant="Variant.Outlined">
+                    <MudSelectItem Value="@string.Empty">Выберите</MudSelectItem>
+                    @foreach (var number in availableNumbers)
+                    {
+                        <MudSelectItem Value="@number">@number</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudSelect T="int?" Label="Клиент" @bind-Value="selectedClientId" Clearable="true" Variant="Variant.Outlined">
+                    <MudSelectItem Value="@((int?)null)">Выберите</MudSelectItem>
+                    @foreach (var client in availableClients)
+                    {
+                        <MudSelectItem Value="@((int?)client.Id)">@client.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudSelect T="int?" Label="Ресурс" @bind-Value="selectedResourceId" Clearable="true" Variant="Variant.Outlined">
+                    <MudSelectItem Value="@((int?)null)">Выберите</MudSelectItem>
+                    @foreach (var resource in availableResources)
+                    {
+                        <MudSelectItem Value="@((int?)resource.Id)">@resource.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+        </MudGrid>
+        <MudGrid Class="mt-3">
+            <MudItem xs="12" md="2">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ApplyFilter">
+                    Применить
+                </MudButton>
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="CreateNewShipment">
+                    Добавить
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudCardContent>
+</MudCard>
+
+<MudTable Items="@shipments" Hover="true" Loading="@loading" LoadingProgressColor="Color.Info" Class="mt-4" Elevation="0" Bordered="true">
+    <HeaderContent>
+        <MudTh>Номер</MudTh>
+        <MudTh>Дата</MudTh>
+        <MudTh>Клиент</MudTh>
+        <MudTh>Статус</MudTh>
+        <MudTh>Ресурс</MudTh>
+        <MudTh>Единица измерения</MudTh>
+        <MudTh Style="text-align:right">Количество</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Номер">@context.Number</MudTd>
+        <MudTd DataLabel="Дата">@context.Date.ToString("dd/MM/yyyy")</MudTd>
+        <MudTd DataLabel="Клиент">@context.ClientName</MudTd>
+        <MudTd DataLabel="Статус">
+            @switch (context.Status)
+            {
+                case ShipmentStatus.Draft:
+                    <MudChip T="string" Color="Color.Default" Size="Size.Small">Черновик</MudChip>
+                    break;
+                case ShipmentStatus.Signed:
+                    <MudChip T="string" Color="Color.Success" Size="Size.Small">Подписан</MudChip>
+                    break;
+                case ShipmentStatus.Cancelled:
+                    <MudChip T="string" Color="Color.Error" Size="Size.Small">Отменен</MudChip>
+                    break;
+            }
+        </MudTd>
+        <MudTd DataLabel="Ресурс">
+            @string.Join(", ", context.Resources.Select(r => r.ResourceName).Distinct())
+        </MudTd>
+        <MudTd DataLabel="Единица измерения">
+            @string.Join(", ", context.Resources.Select(r => r.UnitOfMeasurementName).Distinct())
+        </MudTd>
+        <MudTd DataLabel="Количество" Style="text-align:right">
+            @context.TotalItems.ToString("N0")
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+
+@code {
+    private List<ShipmentDocumentDto> shipments = new();
+    private List<ResourceDto> availableResources = new();
+    private List<ClientDto> availableClients = new();
+    private List<string> availableNumbers = new();
+    private bool loading = false;
+    private DateTime? dateFrom = DateTime.Today.AddMonths(-1);
+    private DateTime? dateTo = DateTime.Today;
+    private string? selectedNumber;
+    private int? selectedResourceId;
+    private int? selectedClientId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadFilterOptions();
+        await LoadShipments();
+    }
+
+    private async Task LoadFilterOptions()
+    {
+        try
+        {
+            availableResources = await WarehouseService.GetResourcesAsync(false);
+            availableClients = await WarehouseService.GetClientsAsync(false);
+            var allShipments = await WarehouseService.GetShipmentsAsync(null);
+            availableNumbers = allShipments.Select(s => s.Number).Distinct().OrderBy(n => n).ToList();
+        }
+        catch
+        {
+            availableResources = new List<ResourceDto>();
+            availableClients = new List<ClientDto>();
+            availableNumbers = new List<string>();
+        }
+    }
+
+    private async Task LoadShipments()
+    {
+        loading = true;
+        try
+        {
+            var filter = new ShipmentFilterDto
+            {
+                DateFrom = dateFrom,
+                DateTo = dateTo,
+                Numbers = !string.IsNullOrEmpty(selectedNumber) ? new List<string> { selectedNumber } : null,
+                ResourceIds = selectedResourceId.HasValue ? new List<int> { selectedResourceId.Value } : null,
+                ClientIds = selectedClientId.HasValue ? new List<int> { selectedClientId.Value } : null
+            };
+            shipments = await WarehouseService.GetShipmentsAsync(filter);
+        }
+        catch
+        {
+            shipments = new List<ShipmentDocumentDto>();
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task ApplyFilter()
+    {
+        await LoadShipments();
+    }
+
+    private void CreateNewShipment()
+    {
+        Snackbar.Add("Функция добавления в разработке", Severity.Info);
+    }
+
+}

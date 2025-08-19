@@ -1,0 +1,159 @@
+@page "/receipts"
+@using WarehouseManagement.Blazor.Models
+@using WarehouseManagement.Blazor.Services
+@inject IWarehouseService WarehouseService
+@inject ISnackbar Snackbar
+
+<MudText Typo="Typo.h4" GutterBottom="true">Поступления</MudText>
+
+<MudCard>
+    <MudCardContent>
+        <MudGrid>
+            <MudItem xs="12" md="3">
+                <MudText Typo="Typo.body2">Период</MudText>
+                <MudGrid>
+                    <MudItem xs="6">
+                        <MudDatePicker Label="" @bind-Date="dateFrom" Variant="Variant.Outlined"/>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudDatePicker Label="" @bind-Date="dateTo" Variant="Variant.Outlined"/>
+                    </MudItem>
+                </MudGrid>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudSelect T="string" Label="Номер поступления" @bind-Value="selectedNumber" Clearable="true" Variant="Variant.Outlined">
+                    <MudSelectItem Value="@((string)null)">Выберите</MudSelectItem>
+                    @foreach (var number in availableNumbers)
+                    {
+                        <MudSelectItem Value="@number">@number</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudSelect T="int?" Label="Ресурс" @bind-Value="selectedResourceId" Clearable="true" Variant="Variant.Outlined">
+                    <MudSelectItem Value="@((int?)null)">Выберите</MudSelectItem>
+                    @foreach (var resource in availableResources)
+                    {
+                        <MudSelectItem Value="@((int?)resource.Id)">@resource.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudSelect T="int?" Label="Единица измерения" @bind-Value="selectedUnitId" Clearable="true" Variant="Variant.Outlined">
+                    <MudSelectItem Value="@((int?)null)">Выберите</MudSelectItem>
+                    @foreach (var unit in availableUnits)
+                    {
+                        <MudSelectItem Value="@((int?)unit.Id)">@unit.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+        </MudGrid>
+        <MudGrid Class="mt-3">
+            <MudItem xs="12" md="2">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ApplyFilter">
+                    Применить
+                </MudButton>
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="CreateNewReceipt">
+                    Добавить
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudCardContent>
+</MudCard>
+
+<MudTable Items="@receipts" Hover="true" Loading="@loading" LoadingProgressColor="Color.Info" Class="mt-4" Elevation="0" Bordered="true">
+    <HeaderContent>
+        <MudTh>Номер</MudTh>
+        <MudTh>Дата</MudTh>
+        <MudTh>Ресурс</MudTh>
+        <MudTh>Единица измерения</MudTh>
+        <MudTh Style="text-align:right">Количество</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Номер">@context.Number</MudTd>
+        <MudTd DataLabel="Дата">@context.Date.ToString("dd/MM/yyyy")</MudTd>
+        <MudTd DataLabel="Ресурс">
+            @string.Join(", ", context.Resources.Select(r => r.ResourceName).Distinct())
+        </MudTd>
+        <MudTd DataLabel="Единица измерения">
+            @string.Join(", ", context.Resources.Select(r => r.UnitOfMeasurementName).Distinct())
+        </MudTd>
+        <MudTd DataLabel="Количество" Style="text-align:right">
+            @context.TotalItems.ToString("N0")
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+
+@code {
+    private List<ReceiptDocumentDto> receipts = new();
+    private List<ResourceDto> availableResources = new();
+    private List<UnitOfMeasurementDto> availableUnits = new();
+    private List<string> availableNumbers = new();
+    private bool loading = false;
+    private DateTime? dateFrom = DateTime.Today.AddMonths(-1);
+    private DateTime? dateTo = DateTime.Today;
+    private string? selectedNumber;
+    private int? selectedResourceId;
+    private int? selectedUnitId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadFilterOptions();
+        await LoadReceipts();
+    }
+
+    private async Task LoadFilterOptions()
+    {
+        try
+        {
+            availableResources = await WarehouseService.GetResourcesAsync(false);
+            availableUnits = await WarehouseService.GetUnitsAsync(false);
+            var allReceipts = await WarehouseService.GetReceiptsAsync(null);
+            availableNumbers = allReceipts.Select(r => r.Number).Distinct().OrderBy(n => n).ToList();
+        }
+        catch
+        {
+            availableResources = new List<ResourceDto>();
+            availableUnits = new List<UnitOfMeasurementDto>();
+            availableNumbers = new List<string>();
+        }
+    }
+
+    private async Task LoadReceipts()
+    {
+        loading = true;
+        try
+        {
+            var filter = new ReceiptFilterDto
+            {
+                DateFrom = dateFrom,
+                DateTo = dateTo,
+                Numbers = !string.IsNullOrEmpty(selectedNumber) ? new List<string> { selectedNumber } : null,
+                ResourceIds = selectedResourceId.HasValue ? new List<int> { selectedResourceId.Value } : null,
+                UnitOfMeasurementIds = selectedUnitId.HasValue ? new List<int> { selectedUnitId.Value } : null
+            };
+            receipts = await WarehouseService.GetReceiptsAsync(filter);
+        }
+        catch
+        {
+            receipts = new List<ReceiptDocumentDto>();
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task ApplyFilter()
+    {
+        await LoadReceipts();
+    }
+
+    private void CreateNewReceipt()
+    {
+        Snackbar.Add("Функция добавления в разработке", Severity.Info);
+    }
+
+}

@@ -1,0 +1,232 @@
+@page "/resources"
+@using WarehouseManagement.Blazor.Models
+@using WarehouseManagement.Blazor.Services
+@inject IWarehouseService WarehouseService
+@inject ISnackbar Snackbar
+
+<MudText Typo="Typo.h4" GutterBottom="true">Ресурсы</MudText>
+
+<MudCard Class="mb-4">
+    <MudCardContent>
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="OpenCreateDialog">
+                    Добавить
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Warning" OnClick="ToggleArchived" Class="ml-2">
+                    @(showArchived ? "Скрыть архив" : "К архиву")
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudCardContent>
+</MudCard>
+
+<MudTable Items="@resources" Hover="true" Loading="@loading" LoadingProgressColor="Color.Info" Elevation="0" Bordered="true">
+    <HeaderContent>
+        <MudTh>Наименование</MudTh>
+        <MudTh>Действия</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Наименование">
+            @context.Name
+            @if (context.IsArchived)
+            {
+                <MudChip T="string" Size="Size.Small" Color="Color.Warning" Class="ml-2">В архиве</MudChip>
+            }
+        </MudTd>
+        <MudTd DataLabel="Действия">
+            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => OpenEditDialog(context)"/>
+            @if (!context.IsArchived)
+            {
+                <MudIconButton Icon="@Icons.Material.Filled.Archive" Color="Color.Warning" Size="Size.Small" OnClick="() => ArchiveResource(context)" Title="В архив"/>
+            }
+            else
+            {
+                <MudIconButton Icon="@Icons.Material.Filled.Unarchive" Color="Color.Success" Size="Size.Small" OnClick="() => RestoreResource(context)" Title="Из архива"/>
+            }
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteResource(context)"/>
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+
+<MudDialog @bind-IsVisible="dialogVisible" Options="dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            @(editingResource == null ? "Добавить ресурс" : "Редактировать ресурс")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField @bind-Value="formModel.Name" Label="Наименование" Required="true" Variant="Variant.Outlined"/>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CloseDialog">Отмена</MudButton>
+        <MudButton Color="Color.Primary" OnClick="SaveResource">Сохранить</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<ResourceDto> resources = new();
+    private bool loading = false;
+    private bool showArchived = false;
+    private bool dialogVisible = false;
+    private ResourceDto? editingResource;
+    private ResourceFormModel formModel = new();
+    private DialogOptions dialogOptions = new() { MaxWidth = MaxWidth.Small, FullWidth = true };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadResources();
+    }
+
+    private async Task LoadResources()
+    {
+        loading = true;
+        try
+        {
+            resources = await WarehouseService.GetResourcesAsync(showArchived);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Ошибка загрузки: {ex.Message}", Severity.Error);
+            resources = new List<ResourceDto>();
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void OpenCreateDialog()
+    {
+        editingResource = null;
+        formModel = new ResourceFormModel();
+        dialogVisible = true;
+    }
+
+    private void OpenEditDialog(ResourceDto resource)
+    {
+        editingResource = resource;
+        formModel = new ResourceFormModel
+        {
+            Name = resource.Name
+        };
+        dialogVisible = true;
+    }
+
+    private void CloseDialog()
+    {
+        dialogVisible = false;
+        editingResource = null;
+        formModel = new ResourceFormModel();
+    }
+
+    private async Task SaveResource()
+    {
+        if (string.IsNullOrWhiteSpace(formModel.Name))
+        {
+            Snackbar.Add("Введите наименование", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            if (editingResource == null)
+            {
+                var dto = new CreateResourceDto { Name = formModel.Name };
+                var result = await WarehouseService.CreateResourceAsync(dto);
+                if (result != null)
+                {
+                    Snackbar.Add("Ресурс добавлен", Severity.Success);
+                    CloseDialog();
+                    await LoadResources();
+                }
+                else
+                {
+                    Snackbar.Add("Ошибка при добавлении", Severity.Error);
+                }
+            }
+            else
+            {
+                var dto = new UpdateResourceDto
+                {
+                    Name = formModel.Name,
+                    IsArchived = editingResource.IsArchived
+                };
+                var result = await WarehouseService.UpdateResourceAsync(editingResource.Id, dto);
+                if (result != null)
+                {
+                    Snackbar.Add("Ресурс обновлен", Severity.Success);
+                    CloseDialog();
+                    await LoadResources();
+                }
+                else
+                {
+                    Snackbar.Add("Ошибка при обновлении", Severity.Error);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Ошибка: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task ArchiveResource(ResourceDto resource)
+    {
+        var result = await WarehouseService.ArchiveResourceAsync(resource.Id);
+        if (result)
+        {
+            Snackbar.Add("Ресурс перемещен в архив", Severity.Success);
+            await LoadResources();
+        }
+        else
+        {
+            Snackbar.Add("Ошибка архивации", Severity.Error);
+        }
+    }
+
+    private async Task RestoreResource(ResourceDto resource)
+    {
+        var dto = new UpdateResourceDto
+        {
+            Name = resource.Name,
+            IsArchived = false
+        };
+        var result = await WarehouseService.UpdateResourceAsync(resource.Id, dto);
+        if (result != null)
+        {
+            Snackbar.Add("Ресурс восстановлен из архива", Severity.Success);
+            await LoadResources();
+        }
+        else
+        {
+            Snackbar.Add("Ошибка восстановления", Severity.Error);
+        }
+    }
+
+    private async Task DeleteResource(ResourceDto resource)
+    {
+        var result = await WarehouseService.DeleteResourceAsync(resource.Id);
+        if (result)
+        {
+            Snackbar.Add("Ресурс удален", Severity.Success);
+            await LoadResources();
+        }
+        else
+        {
+            Snackbar.Add("Невозможно удалить - ресурс используется", Severity.Error);
+        }
+    }
+
+    private async Task ToggleArchived()
+    {
+        showArchived = !showArchived;
+        await LoadResources();
+    }
+
+    private class ResourceFormModel
+    {
+        public string Name { get; set; } = string.Empty;
+    }
+
+}

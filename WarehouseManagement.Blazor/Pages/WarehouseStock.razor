@@ -1,0 +1,107 @@
+@page "/warehouse"
+@using WarehouseManagement.Blazor.Models
+@using WarehouseManagement.Blazor.Services
+@inject IWarehouseService WarehouseService
+
+<MudText Typo="Typo.h4" GutterBottom="true">Баланс</MudText>
+
+<MudCard>
+    <MudCardContent>
+        <MudGrid>
+            <MudItem xs="12" md="5">
+                <MudSelect T="int?" Label="Ресурс" @bind-Value="selectedResourceId" Clearable="true" Variant="Variant.Outlined">
+                    <MudSelectItem Value="@((int?)null)">Выберите</MudSelectItem>
+                    @foreach (var resource in availableResources)
+                    {
+                        <MudSelectItem Value="@((int?)resource.Id)">@resource.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="5">
+                <MudSelect T="int?" Label="Единица измерения" @bind-Value="selectedUnitId" Clearable="true" Variant="Variant.Outlined">
+                    <MudSelectItem Value="@((int?)null)">Выберите</MudSelectItem>
+                    @foreach (var unit in availableUnits)
+                    {
+                        <MudSelectItem Value="@((int?)unit.Id)">@unit.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ApplyFilter" FullWidth="true">
+                    Применить
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudCardContent>
+</MudCard>
+
+<MudTable Items="@stockItems" Hover="true" Loading="@loading" LoadingProgressColor="Color.Info" Class="mt-4" Elevation="0" Bordered="true">
+    <HeaderContent>
+        <MudTh>Ресурс</MudTh>
+        <MudTh>Единица измерения</MudTh>
+        <MudTh Style="text-align:right">Количество</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Ресурс">@context.ResourceName</MudTd>
+        <MudTd DataLabel="Единица измерения">@context.UnitOfMeasurementName</MudTd>
+        <MudTd DataLabel="Количество" Style="text-align:right">@context.Quantity.ToString("N0")</MudTd>
+    </RowTemplate>
+</MudTable>
+
+@code {
+    private List<WarehouseStockDto> stockItems = new();
+    private List<ResourceDto> availableResources = new();
+    private List<UnitOfMeasurementDto> availableUnits = new();
+    private bool loading = false;
+    private int? selectedResourceId;
+    private int? selectedUnitId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadFilterOptions();
+        await LoadStock();
+    }
+
+    private async Task LoadFilterOptions()
+    {
+        try
+        {
+            availableResources = await WarehouseService.GetResourcesAsync(false);
+            availableUnits = await WarehouseService.GetUnitsAsync(false);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading filter options: {ex.Message}");
+        }
+    }
+
+    private async Task LoadStock()
+    {
+        loading = true;
+        try
+        {
+            var filter = new WarehouseStockFilterDto
+            {
+                ResourceIds = selectedResourceId.HasValue ? new List<int> { selectedResourceId.Value } : null,
+                UnitOfMeasurementIds = selectedUnitId.HasValue ? new List<int> { selectedUnitId.Value } : null,
+                IncludeZeroBalance = true
+            };
+            stockItems = await WarehouseService.GetStockAsync(filter);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading stock: {ex.Message}");
+            stockItems = new List<WarehouseStockDto>();
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task ApplyFilter()
+    {
+        await LoadStock();
+    }
+
+}
