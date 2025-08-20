@@ -1,0 +1,143 @@
+@page "/"
+@page "/home"
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-8">
+    <MudPaper Elevation="3" Class="pa-8">
+        <MudGrid>
+            <MudItem xs="12" Class="text-center">
+                <MudIcon Icon="@Icons.Material.Filled.Warehouse" Style="font-size: 5rem;" Color="Color.Primary" />
+                <MudText Typo="Typo.h3" Class="mt-4">
+                    Добро пожаловать в систему управления складом
+                </MudText>
+                <MudText Typo="Typo.h6" Class="mt-2" Color="Color.Secondary">
+                    Эффективное управление ресурсами, поступлениями и отгрузками
+                </MudText>
+            </MudItem>
+        </MudGrid>
+
+        <MudGrid Class="mt-8">
+            <MudItem xs="12" md="4">
+                <MudCard Elevation="2">
+                    <MudCardContent>
+                        <MudIcon Icon="@Icons.Material.Filled.Inventory" Style="font-size: 3rem;" Color="Color.Info" />
+                        <MudText Typo="Typo.h6" Class="mt-2">Управление складом</MudText>
+                        <MudText Typo="Typo.body2" Class="mt-2">
+                            Отслеживайте текущие остатки ресурсов на складе в режиме реального времени
+                        </MudText>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Color="Color.Info" Variant="Variant.Text" Href="/warehouse">
+                            Перейти к балансу
+                        </MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12" md="4">
+                <MudCard Elevation="2">
+                    <MudCardContent>
+                        <MudIcon Icon="@Icons.Material.Filled.AddBox" Style="font-size: 3rem;" Color="Color.Success" />
+                        <MudText Typo="Typo.h6" Class="mt-2">Поступления</MudText>
+                        <MudText Typo="Typo.body2" Class="mt-2">
+                            Регистрируйте поступления товаров на склад и автоматически обновляйте остатки
+                        </MudText>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Color="Color.Success" Variant="Variant.Text" Href="/receipts">
+                            Управление поступлениями
+                        </MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12" md="4">
+                <MudCard Elevation="2">
+                    <MudCardContent>
+                        <MudIcon Icon="@Icons.Material.Filled.LocalShipping" Style="font-size: 3rem;" Color="Color.Warning" />
+                        <MudText Typo="Typo.h6" Class="mt-2">Отгрузки</MudText>
+                        <MudText Typo="Typo.body2" Class="mt-2">
+                            Оформляйте отгрузки клиентам с контролем доступных остатков
+                        </MudText>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Color="Color.Warning" Variant="Variant.Text" Href="/shipments">
+                            Управление отгрузками
+                        </MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+        </MudGrid>
+
+        <MudDivider Class="my-8" />
+
+        <MudGrid>
+            <MudItem xs="12">
+                <MudText Typo="Typo.h5" Class="mb-4">Справочники</MudText>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudPaper Elevation="1" Class="pa-4">
+                    <MudStack Row="true" AlignItems="AlignItems.Center">
+                        <MudIcon Icon="@Icons.Material.Filled.Business" Color="Color.Primary" />
+                        <MudText Typo="Typo.h6">Клиенты</MudText>
+                    </MudStack>
+                    <MudText Typo="Typo.body2" Class="mt-2">
+                        Управление базой клиентов
+                    </MudText>
+                    <MudButton Color="Color.Primary" Variant="Variant.Outlined" FullWidth="true" Class="mt-3" Href="/clients">
+                        Открыть
+                    </MudButton>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="4">
+                <MudPaper Elevation="1" Class="pa-4">
+                    <MudStack Row="true" AlignItems="AlignItems.Center">
+                        <MudIcon Icon="@Icons.Material.Filled.Category" Color="Color.Secondary" />
+                        <MudText Typo="Typo.h6">Ресурсы</MudText>
+                    </MudStack>
+                    <MudText Typo="Typo.body2" Class="mt-2">
+                        Каталог складских ресурсов
+                    </MudText>
+                    <MudButton Color="Color.Secondary" Variant="Variant.Outlined" FullWidth="true" Class="mt-3" Href="/resources">
+                        Открыть
+                    </MudButton>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="4">
+                <MudPaper Elevation="1" Class="pa-4">
+                    <MudStack Row="true" AlignItems="AlignItems.Center">
+                        <MudIcon Icon="@Icons.Material.Filled.Straighten" Color="Color.Tertiary" />
+                        <MudText Typo="Typo.h6">Единицы измерения</MudText>
+                    </MudStack>
+                    <MudText Typo="Typo.body2" Class="mt-2">
+                        Справочник единиц измерения
+                    </MudText>
+                    <MudButton Color="Color.Tertiary" Variant="Variant.Outlined" FullWidth="true" Class="mt-3" Href="/units">
+                        Открыть
+                    </MudButton>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+        <MudDivider Class="my-8" />
+
+        <MudGrid>
+            <MudItem xs="12" Class="text-center">
+                <MudText Typo="Typo.body2" Color="Color.Warning">
+                    © 2024 Система управления складом. Все права защищены.
+                </MudText>
+                <MudText Typo="Typo.caption" Color="Color.Warning" Class="mt-2">
+                    Версия 1.0.0
+                </MudText>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+    }
+}

@@ -74,6 +74,16 @@ public class ApiClient : IApiClient
                 return default;
             }
 
+            if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
+            {
+                if (typeof(T) == typeof(bool))
+                {
+                    return (T)(object)true;
+                }
+
+                return default;
+            }
+
             var content = await response.Content.ReadAsStringAsync();
 
             if (string.IsNullOrWhiteSpace(content))

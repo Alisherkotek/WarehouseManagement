@@ -8,7 +8,9 @@
 <MudLayout>
     <MudAppBar Elevation="1">
         <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@DrawerToggle"/>
-        <MudText Typo="Typo.h5" Class="ml-3">Управление складом</MudText>
+        <MudLink Href="/" Typo="Typo.h5" Color="Color.Inherit" Class="ml-3" Underline="Underline.None">
+            Управление складом
+        </MudLink>
         <MudSpacer/>
     </MudAppBar>
     <MudDrawer @bind-Open="@_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
@@ -28,5 +30,4 @@
     {
         _drawerOpen = !_drawerOpen;
     }
-
 }

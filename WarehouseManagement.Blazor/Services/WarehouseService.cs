@@ -34,7 +34,8 @@ public class WarehouseService : IWarehouseService
     
     public async Task<bool> ArchiveResourceAsync(int id)
     {
-        return await _apiClient.PostAsync<object>($"api/resources/{id}/archive", new { }) != null;
+        var response = await _apiClient.PostAsync<bool>($"api/resources/{id}/archive", new { });
+        return response;
     }
     
     public async Task<bool> DeleteResourceAsync(int id)
@@ -65,7 +66,8 @@ public class WarehouseService : IWarehouseService
     
     public async Task<bool> ArchiveUnitAsync(int id)
     {
-        return await _apiClient.PostAsync<object>($"api/unitsofmeasurement/{id}/archive", new { }) != null;
+        var response = await _apiClient.PostAsync<bool>($"api/unitsofmeasurement/{id}/archive", new { });
+        return response;
     }
     
     public async Task<bool> DeleteUnitAsync(int id)
@@ -96,7 +98,8 @@ public class WarehouseService : IWarehouseService
     
     public async Task<bool> ArchiveClientAsync(int id)
     {
-        return await _apiClient.PostAsync<object>($"api/clients/{id}/archive", new { }) != null;
+        var response = await _apiClient.PostAsync<bool>($"api/clients/{id}/archive", new { });
+        return response;
     }
     
     public async Task<bool> DeleteClientAsync(int id)
