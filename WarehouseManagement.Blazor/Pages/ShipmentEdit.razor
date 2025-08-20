@@ -1,0 +1,285 @@
+@page "/shipments/new"
+@page "/shipments/edit/{Id:int}"
+@using WarehouseManagement.Blazor.Models
+@using WarehouseManagement.Blazor.Services
+@inject IWarehouseService WarehouseService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<MudText Typo="Typo.h4" GutterBottom="true">@(Id == 0 ? "Новая отгрузка" : "Редактировать отгрузку")</MudText>
+
+<MudCard>
+    <MudCardContent>
+        <MudText Typo="Typo.h6" Class="mb-4">Отгрузка</MudText>
+        
+        @if (existingShipment?.Status == ShipmentStatus.Signed)
+        {
+            <MudAlert Severity="Severity.Warning">Подписанный документ нельзя редактировать</MudAlert>
+        }
+        else
+        {
+            <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="SaveShipment">
+                Сохранить
+            </MudButton>
+            @if (Id > 0 && existingShipment?.Status == ShipmentStatus.Draft)
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAndSign" Class="ml-2">
+                    Сохранить и подписать
+                </MudButton>
+            }
+        }
+        <MudButton Variant="Variant.Outlined" Color="Color.Default" OnClick="Cancel" Class="ml-2">
+            Отмена
+        </MudButton>
+        
+        <MudGrid Class="mt-4">
+            <MudItem xs="12" md="4">
+                <MudTextField @bind-Value="shipment.Number" Label="Номер" Required="true" Variant="Variant.Outlined" 
+                             ReadOnly="@(existingShipment?.Status == ShipmentStatus.Signed)" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudSelect @bind-Value="shipment.ClientId" Label="Клиент" Required="true" Variant="Variant.Outlined"
+                          Disabled="@(existingShipment?.Status == ShipmentStatus.Signed)">
+                    @foreach (var client in availableClients)
+                    {
+                        <MudSelectItem Value="@client.Id">@client.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudDatePicker @bind-Date="shipmentDate" Label="Дата" Required="true" Variant="Variant.Outlined"
+                              ReadOnly="@(existingShipment?.Status == ShipmentStatus.Signed)" />
+            </MudItem>
+        </MudGrid>
+        
+        <MudTable Items="@shipment.Resources" Class="mt-4" Elevation="0" Bordered="true">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6">Ресурсы</MudText>
+                <MudSpacer />
+                @if (existingShipment?.Status != ShipmentStatus.Signed)
+                {
+                    <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Success" OnClick="AddResource" />
+                }
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh>Ресурс</MudTh>
+                <MudTh>Единица измерения</MudTh>
+                <MudTh>Количество</MudTh>
+                <MudTh></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>
+                    <MudSelect @bind-Value="context.ResourceId" Variant="Variant.Outlined" Dense="true"
+                              Disabled="@(existingShipment?.Status == ShipmentStatus.Signed)">
+                        @foreach (var resource in availableResources)
+                        {
+                            <MudSelectItem Value="@resource.Id">@resource.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudTd>
+                <MudTd>
+                    <MudSelect @bind-Value="context.UnitOfMeasurementId" Variant="Variant.Outlined" Dense="true"
+                              Disabled="@(existingShipment?.Status == ShipmentStatus.Signed)">
+                        @foreach (var unit in availableUnits)
+                        {
+                            <MudSelectItem Value="@unit.Id">@unit.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudTd>
+                <MudTd>
+                    <MudNumericField @bind-Value="context.Quantity" Variant="Variant.Outlined" Dense="true"
+                                    ReadOnly="@(existingShipment?.Status == ShipmentStatus.Signed)" />
+                </MudTd>
+                <MudTd>
+                    @if (existingShipment?.Status != ShipmentStatus.Signed)
+                    {
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" 
+                                      OnClick="() => RemoveResource(context)" />
+                    }
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    [Parameter] public int Id { get; set; }
+    
+    private CreateShipmentDocumentDto shipment = new();
+    private ShipmentDocumentDto? existingShipment;
+    private DateTime? shipmentDate = DateTime.Today;
+    private List<ResourceDto> availableResources = new();
+    private List<UnitOfMeasurementDto> availableUnits = new();
+    private List<ClientDto> availableClients = new();
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadOptions();
+        
+        if (Id > 0)
+        {
+            await LoadShipment();
+        }
+        else
+        {
+            shipment = new CreateShipmentDocumentDto
+            {
+                Number = GenerateNumber(),
+                Date = DateTime.Today,
+                ClientId = availableClients.FirstOrDefault()?.Id ?? 0,
+                Resources = new List<CreateShipmentResourceDto>()
+            };
+        }
+    }
+    
+    private async Task LoadOptions()
+    {
+        availableResources = await WarehouseService.GetResourcesAsync(false);
+        availableUnits = await WarehouseService.GetUnitsAsync(false);
+        availableClients = await WarehouseService.GetClientsAsync(false);
+    }
+    
+    private async Task LoadShipment()
+    {
+        existingShipment = await WarehouseService.GetShipmentAsync(Id);
+        if (existingShipment != null)
+        {
+            shipment = new CreateShipmentDocumentDto
+            {
+                Number = existingShipment.Number,
+                Date = existingShipment.Date,
+                ClientId = existingShipment.ClientId,
+                Resources = existingShipment.Resources.Select(r => new CreateShipmentResourceDto
+                {
+                    ResourceId = r.ResourceId,
+                    UnitOfMeasurementId = r.UnitOfMeasurementId,
+                    Quantity = r.Quantity
+                }).ToList()
+            };
+            shipmentDate = existingShipment.Date;
+        }
+    }
+    
+    private string GenerateNumber()
+    {
+        return $"О-{DateTime.Now:yyyyMMdd-HHmmss}";
+    }
+    
+    private void AddResource()
+    {
+        shipment.Resources.Add(new CreateShipmentResourceDto
+        {
+            ResourceId = availableResources.FirstOrDefault()?.Id ?? 0,
+            UnitOfMeasurementId = availableUnits.FirstOrDefault()?.Id ?? 0,
+            Quantity = 1
+        });
+    }
+    
+    private void RemoveResource(CreateShipmentResourceDto resource)
+    {
+        shipment.Resources.Remove(resource);
+    }
+    
+    private async Task SaveShipment()
+    {
+        await Save(false);
+    }
+    
+    private async Task SaveAndSign()
+    {
+        await Save(true);
+    }
+    
+    private async Task Save(bool andSign)
+    {
+        if (string.IsNullOrWhiteSpace(shipment.Number))
+        {
+            Snackbar.Add("Введите номер отгрузки", Severity.Warning);
+            return;
+        }
+        
+        if (shipment.ClientId == 0)
+        {
+            Snackbar.Add("Выберите клиента", Severity.Warning);
+            return;
+        }
+        
+        if (!shipmentDate.HasValue)
+        {
+            Snackbar.Add("Выберите дату", Severity.Warning);
+            return;
+        }
+        
+        if (!shipment.Resources.Any())
+        {
+            Snackbar.Add("Добавьте хотя бы один ресурс", Severity.Warning);
+            return;
+        }
+        
+        shipment.Date = shipmentDate.Value;
+        
+        try
+        {
+            ShipmentDocumentDto? result = null;
+            
+            if (Id == 0)
+            {
+                result = await WarehouseService.CreateShipmentAsync(shipment);
+                if (result != null)
+                {
+                    if (andSign)
+                    {
+                        result = await WarehouseService.SignShipmentAsync(result.Id);
+                        Snackbar.Add("Отгрузка создана и подписана", Severity.Success);
+                    }
+                    else
+                    {
+                        Snackbar.Add("Отгрузка создана", Severity.Success);
+                    }
+                    Navigation.NavigateTo("/shipments");
+                }
+                else
+                {
+                    Snackbar.Add("Ошибка при создании", Severity.Error);
+                }
+            }
+            else
+            {
+                var updateDto = new UpdateShipmentDocumentDto
+                {
+                    Number = shipment.Number,
+                    Date = shipment.Date,
+                    ClientId = shipment.ClientId,
+                    Resources = shipment.Resources
+                };
+                result = await WarehouseService.UpdateShipmentAsync(Id, updateDto);
+                if (result != null)
+                {
+                    if (andSign)
+                    {
+                        result = await WarehouseService.SignShipmentAsync(Id);
+                        Snackbar.Add("Отгрузка обновлена и подписана", Severity.Success);
+                    }
+                    else
+                    {
+                        Snackbar.Add("Отгрузка обновлена", Severity.Success);
+                    }
+                    Navigation.NavigateTo("/shipments");
+                }
+                else
+                {
+                    Snackbar.Add("Ошибка при обновлении", Severity.Error);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Ошибка: {ex.Message}", Severity.Error);
+        }
+    }
+    
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/shipments");
+    }
+}

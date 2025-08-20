@@ -3,6 +3,8 @@
 @using WarehouseManagement.Blazor.Services
 @inject IWarehouseService WarehouseService
 @inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+@inject IDialogService DialogService
 
 <MudText Typo="Typo.h4" GutterBottom="true">Поступления</MudText>
 
@@ -22,7 +24,7 @@
             </MudItem>
             <MudItem xs="12" md="3">
                 <MudSelect T="string" Label="Номер поступления" @bind-Value="selectedNumber" Clearable="true" Variant="Variant.Outlined">
-                    <MudSelectItem Value="@((string)null)">Выберите</MudSelectItem>
+                    <MudSelectItem Value="@string.Empty">Выберите</MudSelectItem>
                     @foreach (var number in availableNumbers)
                     {
                         <MudSelectItem Value="@number">@number</MudSelectItem>
@@ -70,6 +72,7 @@
         <MudTh>Ресурс</MudTh>
         <MudTh>Единица измерения</MudTh>
         <MudTh Style="text-align:right">Количество</MudTh>
+        <MudTh>Действия</MudTh>
     </HeaderContent>
     <RowTemplate>
         <MudTd DataLabel="Номер">@context.Number</MudTd>
@@ -82,6 +85,10 @@
         </MudTd>
         <MudTd DataLabel="Количество" Style="text-align:right">
             @context.TotalItems.ToString("N0")
+        </MudTd>
+        <MudTd DataLabel="Действия">
+            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => EditReceipt(context.Id)"/>
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" />
         </MudTd>
     </RowTemplate>
 </MudTable>
@@ -153,7 +160,12 @@
 
     private void CreateNewReceipt()
     {
-        Snackbar.Add("Функция добавления в разработке", Severity.Info);
+        Navigation.NavigateTo("/receipts/new");
+    }
+
+    private void EditReceipt(int id)
+    {
+        Navigation.NavigateTo($"/receipts/edit/{id}");
     }
 
 }

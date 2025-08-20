@@ -73,7 +73,10 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("BlazorPolicy", policy =>
     {
-        policy.WithOrigins("https://localhost:7020", "http://localhost:7020")
+        policy.WithOrigins(
+                "https://localhost:7058",  
+                "http://localhost:5119"    
+            )
             .AllowAnyHeader()
             .AllowAnyMethod();
     });

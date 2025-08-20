@@ -3,6 +3,7 @@
 @using WarehouseManagement.Blazor.Services
 @inject IWarehouseService WarehouseService
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 
 <MudText Typo="Typo.h4" GutterBottom="true">Единицы измерения</MudText>
 
@@ -38,18 +39,18 @@
             <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => OpenEditDialog(context)"/>
             @if (!context.IsArchived)
             {
-                <MudIconButton Icon="@Icons.Material.Filled.Archive" Color="Color.Warning" Size="Size.Small" OnClick="() => ArchiveUnit(context)" Title="В архив"/>
+                <MudIconButton Icon="@Icons.Material.Filled.Archive" Color="Color.Warning" Size="Size.Small" OnClick="() => ArchiveUnit(context)" Tooltip="В архив"/>
             }
             else
             {
-                <MudIconButton Icon="@Icons.Material.Filled.Unarchive" Color="Color.Success" Size="Size.Small" OnClick="() => RestoreUnit(context)" Title="Из архива"/>
+                <MudIconButton Icon="@Icons.Material.Filled.Unarchive" Color="Color.Success" Size="Size.Small" OnClick="() => RestoreUnit(context)" Tooltip="Из архива"/>
             }
             <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteUnit(context)"/>
         </MudTd>
     </RowTemplate>
 </MudTable>
 
-<MudDialog @bind-IsVisible="dialogVisible" Options="dialogOptions">
+<MudDialog @bind-Visible="dialogVisible" Options="dialogOptions">
     <TitleContent>
         <MudText Typo="Typo.h6">
             @(editingUnit == null ? "Добавить единицу измерения" : "Редактировать единицу измерения")
@@ -96,21 +97,27 @@
         }
     }
 
-    private void OpenCreateDialog()
+    private async Task OpenCreateDialog()
     {
-        editingUnit = null;
-        formModel = new UnitFormModel();
-        dialogVisible = true;
+        var dialog = DialogService.Show<UnitDialog>("Добавить единицу измерения");
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadUnits();
+        }
     }
 
-    private void OpenEditDialog(UnitOfMeasurementDto unit)
+    private async Task OpenEditDialog(UnitOfMeasurementDto unit)
     {
-        editingUnit = unit;
-        formModel = new UnitFormModel
+        var parameters = new DialogParameters { ["Unit"] = unit };
+        var dialog = DialogService.Show<UnitDialog>("Редактировать единицу измерения", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
         {
-            Name = unit.Name
-        };
-        dialogVisible = true;
+            await LoadUnits();
+        }
     }
 
     private void CloseDialog()
@@ -206,15 +213,23 @@
 
     private async Task DeleteUnit(UnitOfMeasurementDto unit)
     {
-        var result = await WarehouseService.DeleteUnitAsync(unit.Id);
-        if (result)
+        bool? result = await DialogService.ShowMessageBox(
+            "Подтверждение",
+            $"Удалить единицу измерения {unit.Name}?",
+            yesText: "Удалить", cancelText: "Отмена");
+
+        if (result == true)
         {
-            Snackbar.Add("Единица измерения удалена", Severity.Success);
-            await LoadUnits();
-        }
-        else
-        {
-            Snackbar.Add("Невозможно удалить - единица измерения используется", Severity.Error);
+            var deleted = await WarehouseService.DeleteUnitAsync(unit.Id);
+            if (deleted)
+            {
+                Snackbar.Add("Единица измерения удалена", Severity.Success);
+                await LoadUnits();
+            }
+            else
+            {
+                Snackbar.Add("Невозможно удалить - единица измерения используется в документах", Severity.Error);
+            }
         }
     }
 

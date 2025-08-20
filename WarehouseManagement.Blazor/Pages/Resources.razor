@@ -1,8 +1,10 @@
+@* WarehouseManagement.Blazor/Components/Pages/Resources.razor *@
 @page "/resources"
 @using WarehouseManagement.Blazor.Models
 @using WarehouseManagement.Blazor.Services
 @inject IWarehouseService WarehouseService
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 
 <MudText Typo="Typo.h4" GutterBottom="true">Ресурсы</MudText>
 
@@ -38,18 +40,18 @@
             <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => OpenEditDialog(context)"/>
             @if (!context.IsArchived)
             {
-                <MudIconButton Icon="@Icons.Material.Filled.Archive" Color="Color.Warning" Size="Size.Small" OnClick="() => ArchiveResource(context)" Title="В архив"/>
+                <MudIconButton Icon="@Icons.Material.Filled.Archive" Color="Color.Warning" Size="Size.Small" OnClick="() => ArchiveResource(context)" Tooltip="В архив"/>
             }
             else
             {
-                <MudIconButton Icon="@Icons.Material.Filled.Unarchive" Color="Color.Success" Size="Size.Small" OnClick="() => RestoreResource(context)" Title="Из архива"/>
+                <MudIconButton Icon="@Icons.Material.Filled.Unarchive" Color="Color.Success" Size="Size.Small" OnClick="() => RestoreResource(context)" Tooltip="Из архива"/>
             }
             <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteResource(context)"/>
         </MudTd>
     </RowTemplate>
 </MudTable>
 
-<MudDialog @bind-IsVisible="dialogVisible" Options="dialogOptions">
+<MudDialog @bind-Visible="dialogVisible" Options="dialogOptions">
     <TitleContent>
         <MudText Typo="Typo.h6">
             @(editingResource == null ? "Добавить ресурс" : "Редактировать ресурс")
@@ -96,21 +98,27 @@
         }
     }
 
-    private void OpenCreateDialog()
+    private async Task OpenCreateDialog()
     {
-        editingResource = null;
-        formModel = new ResourceFormModel();
-        dialogVisible = true;
+        var dialog = DialogService.Show<ResourceDialog>("Добавить ресурс");
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadResources();
+        }
     }
 
-    private void OpenEditDialog(ResourceDto resource)
+    private async Task OpenEditDialog(ResourceDto resource)
     {
-        editingResource = resource;
-        formModel = new ResourceFormModel
+        var parameters = new DialogParameters { ["Resource"] = resource };
+        var dialog = DialogService.Show<ResourceDialog>("Редактировать ресурс", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
         {
-            Name = resource.Name
-        };
-        dialogVisible = true;
+            await LoadResources();
+        }
     }
 
     private void CloseDialog()
@@ -206,15 +214,23 @@
 
     private async Task DeleteResource(ResourceDto resource)
     {
-        var result = await WarehouseService.DeleteResourceAsync(resource.Id);
-        if (result)
+        bool? result = await DialogService.ShowMessageBox(
+            "Подтверждение",
+            $"Удалить ресурс {resource.Name}?",
+            yesText: "Удалить", cancelText: "Отмена");
+
+        if (result == true)
         {
-            Snackbar.Add("Ресурс удален", Severity.Success);
-            await LoadResources();
-        }
-        else
-        {
-            Snackbar.Add("Невозможно удалить - ресурс используется", Severity.Error);
+            var deleted = await WarehouseService.DeleteResourceAsync(resource.Id);
+            if (deleted)
+            {
+                Snackbar.Add("Ресурс удален", Severity.Success);
+                await LoadResources();
+            }
+            else
+            {
+                Snackbar.Add("Невозможно удалить - ресурс используется в документах", Severity.Error);
+            }
         }
     }
 

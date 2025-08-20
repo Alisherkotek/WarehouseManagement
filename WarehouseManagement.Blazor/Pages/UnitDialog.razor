@@ -1,0 +1,88 @@
+@* WarehouseManagement.Blazor/Components/Dialogs/UnitDialog.razor *@
+@using WarehouseManagement.Blazor.Models
+@using WarehouseManagement.Blazor.Services
+@using MudBlazor
+@inject IWarehouseService WarehouseService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudTextField @bind-Value="_model.Name" Label="Наименование" Required="true" Variant="Variant.Outlined"/>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Отмена</MudButton>
+        <MudButton Color="Color.Success" OnClick="Submit">Сохранить</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public UnitOfMeasurementDto? Unit { get; set; }
+
+    private UnitFormModel _model = new();
+
+    protected override void OnInitialized()
+    {
+        if (Unit != null)
+        {
+            _model.Name = Unit.Name;
+        }
+    }
+
+    private async Task Submit()
+    {
+        if (string.IsNullOrWhiteSpace(_model.Name))
+        {
+            Snackbar.Add("Введите наименование", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            if (Unit == null)
+            {
+                var dto = new CreateUnitOfMeasurementDto { Name = _model.Name };
+                var result = await WarehouseService.CreateUnitAsync(dto);
+                if (result != null)
+                {
+                    Snackbar.Add("Единица измерения добавлена", Severity.Success);
+                    MudDialog.Close(DialogResult.Ok(result));
+                }
+                else
+                {
+                    Snackbar.Add("Ошибка при добавлении - возможно такое имя уже существует", Severity.Error);
+                }
+            }
+            else
+            {
+                var dto = new UpdateUnitOfMeasurementDto
+                {
+                    Name = _model.Name,
+                    IsArchived = Unit.IsArchived
+                };
+                var result = await WarehouseService.UpdateUnitAsync(Unit.Id, dto);
+                if (result != null)
+                {
+                    Snackbar.Add("Единица измерения обновлена", Severity.Success);
+                    MudDialog.Close(DialogResult.Ok(result));
+                }
+                else
+                {
+                    Snackbar.Add("Ошибка при обновлении", Severity.Error);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Ошибка: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private class UnitFormModel
+    {
+        public string Name { get; set; } = string.Empty;
+    }
+
+}

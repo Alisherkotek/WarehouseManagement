@@ -1,8 +1,10 @@
+@* WarehouseManagement.Blazor/Components/Pages/Clients.razor *@
 @page "/clients"
 @using WarehouseManagement.Blazor.Models
 @using WarehouseManagement.Blazor.Services
 @inject IWarehouseService WarehouseService
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 
 <MudText Typo="Typo.h4" GutterBottom="true">Клиенты</MudText>
 
@@ -40,41 +42,21 @@
             <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => OpenEditDialog(context)"/>
             @if (!context.IsArchived)
             {
-                <MudIconButton Icon="@Icons.Material.Filled.Archive" Color="Color.Warning" Size="Size.Small" OnClick="() => ArchiveClient(context)" Title="В архив"/>
+                <MudIconButton Icon="@Icons.Material.Filled.Archive" Color="Color.Warning" Size="Size.Small" OnClick="() => ArchiveClient(context)" Tooltip="В архив"/>
             }
             else
             {
-                <MudIconButton Icon="@Icons.Material.Filled.Unarchive" Color="Color.Success" Size="Size.Small" OnClick="() => RestoreClient(context)" Title="Из архива"/>
+                <MudIconButton Icon="@Icons.Material.Filled.Unarchive" Color="Color.Success" Size="Size.Small" OnClick="() => RestoreClient(context)" Tooltip="Из архива"/>
             }
             <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteClient(context)"/>
         </MudTd>
     </RowTemplate>
 </MudTable>
 
-<MudDialog @bind-IsVisible="dialogVisible" Options="dialogOptions">
-    <TitleContent>
-        <MudText Typo="Typo.h6">
-            @(editingClient == null ? "Добавить клиента" : "Редактировать клиента")
-        </MudText>
-    </TitleContent>
-    <DialogContent>
-        <MudTextField @bind-Value="formModel.Name" Label="Наименование" Required="true" Variant="Variant.Outlined" Class="mb-3"/>
-        <MudTextField @bind-Value="formModel.Address" Label="Адрес" Required="true" Variant="Variant.Outlined" Lines="3"/>
-    </DialogContent>
-    <DialogActions>
-        <MudButton OnClick="CloseDialog">Отмена</MudButton>
-        <MudButton Color="Color.Primary" OnClick="SaveClient">Сохранить</MudButton>
-    </DialogActions>
-</MudDialog>
-
 @code {
     private List<ClientDto> clients = new();
     private bool loading = false;
     private bool showArchived = false;
-    private bool dialogVisible = false;
-    private ClientDto? editingClient;
-    private ClientFormModel formModel = new();
-    private DialogOptions dialogOptions = new() { MaxWidth = MaxWidth.Small, FullWidth = true };
 
     protected override async Task OnInitializedAsync()
     {
@@ -99,80 +81,26 @@
         }
     }
 
-    private void OpenCreateDialog()
+    private async Task OpenCreateDialog()
     {
-        editingClient = null;
-        formModel = new ClientFormModel();
-        dialogVisible = true;
-    }
+        var dialog = DialogService.Show<ClientDialog>("Добавить клиента");
+        var result = await dialog.Result;
 
-    private void OpenEditDialog(ClientDto client)
-    {
-        editingClient = client;
-        formModel = new ClientFormModel
+        if (!result.Canceled)
         {
-            Name = client.Name,
-            Address = client.Address
-        };
-        dialogVisible = true;
-    }
-
-    private void CloseDialog()
-    {
-        dialogVisible = false;
-        editingClient = null;
-        formModel = new ClientFormModel();
-    }
-
-    private async Task SaveClient()
-    {
-        if (string.IsNullOrWhiteSpace(formModel.Name) || string.IsNullOrWhiteSpace(formModel.Address))
-        {
-            Snackbar.Add("Заполните все поля", Severity.Warning);
-            return;
+            await LoadClients();
         }
+    }
 
-        try
+    private async Task OpenEditDialog(ClientDto client)
+    {
+        var parameters = new DialogParameters { ["Client"] = client };
+        var dialog = DialogService.Show<ClientDialog>("Редактировать клиента", parameters);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
         {
-            if (editingClient == null)
-            {
-                var dto = new CreateClientDto { Name = formModel.Name, Address = formModel.Address };
-                var result = await WarehouseService.CreateClientAsync(dto);
-                if (result != null)
-                {
-                    Snackbar.Add("Клиент добавлен", Severity.Success);
-                    CloseDialog();
-                    await LoadClients();
-                }
-                else
-                {
-                    Snackbar.Add("Ошибка при добавлении", Severity.Error);
-                }
-            }
-            else
-            {
-                var dto = new UpdateClientDto
-                {
-                    Name = formModel.Name,
-                    Address = formModel.Address,
-                    IsArchived = editingClient.IsArchived
-                };
-                var result = await WarehouseService.UpdateClientAsync(editingClient.Id, dto);
-                if (result != null)
-                {
-                    Snackbar.Add("Клиент обновлен", Severity.Success);
-                    CloseDialog();
-                    await LoadClients();
-                }
-                else
-                {
-                    Snackbar.Add("Ошибка при обновлении", Severity.Error);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Ошибка: {ex.Message}", Severity.Error);
+            await LoadClients();
         }
     }
 
@@ -212,15 +140,23 @@
 
     private async Task DeleteClient(ClientDto client)
     {
-        var result = await WarehouseService.DeleteClientAsync(client.Id);
-        if (result)
+        bool? result = await DialogService.ShowMessageBox(
+            "Подтверждение",
+            $"Удалить клиента {client.Name}?",
+            yesText: "Удалить", cancelText: "Отмена");
+
+        if (result == true)
         {
-            Snackbar.Add("Клиент удален", Severity.Success);
-            await LoadClients();
-        }
-        else
-        {
-            Snackbar.Add("Невозможно удалить - клиент используется", Severity.Error);
+            var deleted = await WarehouseService.DeleteClientAsync(client.Id);
+            if (deleted)
+            {
+                Snackbar.Add("Клиент удален", Severity.Success);
+                await LoadClients();
+            }
+            else
+            {
+                Snackbar.Add("Невозможно удалить - клиент используется в документах", Severity.Error);
+            }
         }
     }
 
@@ -228,12 +164,6 @@
     {
         showArchived = !showArchived;
         await LoadClients();
-    }
-
-    private class ClientFormModel
-    {
-        public string Name { get; set; } = string.Empty;
-        public string Address { get; set; } = string.Empty;
     }
 
 }

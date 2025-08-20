@@ -3,6 +3,7 @@
 @using WarehouseManagement.Blazor.Services
 @inject IWarehouseService WarehouseService
 @inject ISnackbar Snackbar
+@inject NavigationManager Navigation
 
 <MudText Typo="Typo.h4" GutterBottom="true">Отгрузки</MudText>
 
@@ -72,6 +73,7 @@
         <MudTh>Ресурс</MudTh>
         <MudTh>Единица измерения</MudTh>
         <MudTh Style="text-align:right">Количество</MudTh>
+        <MudTh>Действия</MudTh>
     </HeaderContent>
     <RowTemplate>
         <MudTd DataLabel="Номер">@context.Number</MudTd>
@@ -99,6 +101,18 @@
         </MudTd>
         <MudTd DataLabel="Количество" Style="text-align:right">
             @context.TotalItems.ToString("N0")
+        </MudTd>
+        <MudTd DataLabel="Действия">
+            @if (context.Status == ShipmentStatus.Draft)
+            {
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="() => EditShipment(context.Id)" Tooltip="Редактировать"/>
+                <MudIconButton Icon="@Icons.Material.Filled.Check" Color="Color.Success" Size="Size.Small" OnClick="() => SignShipment(context)" Tooltip="Подписать"/>
+            }
+            @if (context.Status == ShipmentStatus.Signed)
+            {
+                <MudIconButton Icon="@Icons.Material.Filled.Cancel" Color="Color.Warning" Size="Size.Small" OnClick="() => CancelShipment(context)" Tooltip="Отменить"/>
+            }
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="() => DeleteShipment(context)" Tooltip="Удалить"/>
         </MudTd>
     </RowTemplate>
 </MudTable>
@@ -170,7 +184,54 @@
 
     private void CreateNewShipment()
     {
-        Snackbar.Add("Функция добавления в разработке", Severity.Info);
+        Navigation.NavigateTo("/shipments/new");
+    }
+
+    private void EditShipment(int id)
+    {
+        Navigation.NavigateTo($"/shipments/edit/{id}");
+    }
+
+    private async Task SignShipment(ShipmentDocumentDto shipment)
+    {
+        var result = await WarehouseService.SignShipmentAsync(shipment.Id);
+        if (result != null)
+        {
+            Snackbar.Add("Отгрузка подписана", Severity.Success);
+            await LoadShipments();
+        }
+        else
+        {
+            Snackbar.Add("Недостаточно товара на складе", Severity.Error);
+        }
+    }
+
+    private async Task CancelShipment(ShipmentDocumentDto shipment)
+    {
+        var result = await WarehouseService.CancelShipmentAsync(shipment.Id);
+        if (result != null)
+        {
+            Snackbar.Add("Отгрузка отменена", Severity.Success);
+            await LoadShipments();
+        }
+        else
+        {
+            Snackbar.Add("Ошибка при отмене", Severity.Error);
+        }
+    }
+
+    private async Task DeleteShipment(ShipmentDocumentDto shipment)
+    {
+        var result = await WarehouseService.DeleteShipmentAsync(shipment.Id);
+        if (result)
+        {
+            Snackbar.Add("Отгрузка удалена", Severity.Success);
+            await LoadShipments();
+        }
+        else
+        {
+            Snackbar.Add("Ошибка при удалении", Severity.Error);
+        }
     }
 
 }

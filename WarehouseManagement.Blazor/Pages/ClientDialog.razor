@@ -1,0 +1,92 @@
+@* WarehouseManagement.Blazor/Components/Dialogs/ClientDialog.razor *@
+@using WarehouseManagement.Blazor.Models
+@using WarehouseManagement.Blazor.Services
+@using MudBlazor
+@inject IWarehouseService WarehouseService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudTextField @bind-Value="_model.Name" Label="Наименование" Required="true" Variant="Variant.Outlined" Class="mb-3"/>
+        <MudTextField @bind-Value="_model.Address" Label="Адрес" Required="true" Variant="Variant.Outlined" Lines="3"/>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Отмена</MudButton>
+        <MudButton Color="Color.Success" OnClick="Submit">Сохранить</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+    [Parameter] public ClientDto? Client { get; set; }
+
+    private ClientFormModel _model = new();
+
+    protected override void OnInitialized()
+    {
+        if (Client != null)
+        {
+            _model.Name = Client.Name;
+            _model.Address = Client.Address;
+        }
+    }
+
+    private async Task Submit()
+    {
+        if (string.IsNullOrWhiteSpace(_model.Name) || string.IsNullOrWhiteSpace(_model.Address))
+        {
+            Snackbar.Add("Заполните все поля", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            if (Client == null)
+            {
+                var dto = new CreateClientDto { Name = _model.Name, Address = _model.Address };
+                var result = await WarehouseService.CreateClientAsync(dto);
+                if (result != null)
+                {
+                    Snackbar.Add("Клиент добавлен", Severity.Success);
+                    MudDialog.Close(DialogResult.Ok(result));
+                }
+                else
+                {
+                    Snackbar.Add("Ошибка при добавлении", Severity.Error);
+                }
+            }
+            else
+            {
+                var dto = new UpdateClientDto
+                {
+                    Name = _model.Name,
+                    Address = _model.Address,
+                    IsArchived = Client.IsArchived
+                };
+                var result = await WarehouseService.UpdateClientAsync(Client.Id, dto);
+                if (result != null)
+                {
+                    Snackbar.Add("Клиент обновлен", Severity.Success);
+                    MudDialog.Close(DialogResult.Ok(result));
+                }
+                else
+                {
+                    Snackbar.Add("Ошибка при обновлении", Severity.Error);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Ошибка: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private class ClientFormModel
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Address { get; set; } = string.Empty;
+    }
+
+}
